@@ -5,7 +5,12 @@ import requests
 import zipfile
 import os
 import sys
+import re
 
+def getSize(href):
+   downloadInfo = requests.head(href).headers
+   downloadSize = int(downloadInfo['content-length']) / (1024 * 1024)
+   return str(downloadSize) + "MB"
 
 #Progress bar found on this Stack Overflow question
 #http://stackoverflow.com/questions/5783517/downloading-progress-bar-urllib2-python
@@ -18,7 +23,7 @@ def chunk_report(bytes_so_far, chunk_size, total_size):
    if bytes_so_far >= total_size:
       sys.stdout.write('\n')
 
-def chunk_read(response, chunk_size=8192, report_hook=None):
+def chunk_read(response, chunk_size=32768, report_hook=None):
    total_size = response.info().getheader('Content-Length').strip()
    total_size = int(total_size)
    bytes_so_far = 0
@@ -38,23 +43,44 @@ def chunk_read(response, chunk_size=8192, report_hook=None):
    return "".join(data)
 
 if __name__ == '__main__':
-
-    base = "http://www.songspk.name/indian-mp3-songs/"
     movie = raw_input("Enter the movie name\t").lower()
     year = raw_input("Enter the year of release\t")
     try:
-        print "Songs will be downloaded to " + os.getcwd() + '/' + movie 
-        os.mkdir(movie)
-        os.chdir(movie)
+       print "Songs will be downloaded to " + os.getcwd() + '/' + movie 
+       os.mkdir(movie)
+       os.chdir(movie)
     except:
-        pass
-
-    toAppend = '-'.join(movie.split()) + '-' + year + '-mp3-songs.html'
-    songsPKUrl = base + toAppend
-    sourceSite = urllib2.urlopen(songsPKUrl)
+       pass
+    if int(year) >= 2014:
+       base = "http://www.songspk.name/indian-mp3-songs/"
+       toAppend = '-'.join(movie.split()) + '-' + year + '-mp3-songs.html'
+       songsPKUrl = base + toAppend
+    elif int(year) >= 2011:
+       base = "http://www.songspk.name/indian-mp3-songs/"
+       toAppend = '-'.join(movie.split()) + '-' + year + '_mp3_songs.html'
+       songsPKUrl = base + toAppend
+    else:
+       base = "http://www.songspk.name/indian/"
+       toAppend = '_'.join(movie.split()) + '_' + year + '.html'
+       songsPKUrl = base + toAppend
+    try:
+       sourceSite = urllib2.urlopen(songsPKUrl)
+    except:
+       try:
+          #format for albums from early 2010 and before
+          base = "http://www.songspk.name/indian/"
+          toAppend = '_'.join(movie.split()) + '.html'
+          songsPKUrl = base + toAppend
+          sourceSite = urllib2.urlopen(songsPKUrl)
+       except:
+          print songsPKUrl
+          print "Link does not exist."
+          print "Cleaning up"
+          os.chdir('../')
+          os.rmdir(movie)
+          sys.exit(1)
     soup = BeautifulSoup(sourceSite)
     zipLinks = []
-    
     for link in soup.find_all('a'):
         href = link.get('href')
         try:
@@ -63,22 +89,20 @@ if __name__ == '__main__':
         except:
             pass
             
-    print "The following links have been discovered"
+    print "Please wait while the download links are fetched."
     counter = 1
     for zip in zipLinks:
-        print str(counter) + "\t" + str(zip)
+        print str(counter) + '\t' + re.findall('\d+Kbps', zip)[0] + '\t' + getSize(zip)
         counter += 1
     
     choice = int(raw_input("Which of the above do you wish to download?")) - 1
-    downloadInfo = requests.head(zipLinks[choice]).headers
-    downloadSize = downloadInfo['content-length']
-    print str(int(downloadSize) / (1024 * 1024)) + "MB to be downloaded."
-    print "Press y/n to continue"
+    print "Press y/n to confirm."
     proceed = raw_input().lower()
     if proceed == 'n':
-        print "Exiting."
-        sys.exit(1)
-    
+       print "Cleaning up and exiting."
+       os.chdir('../')
+       os.rmdir(movie)
+       sys.exit(1)
     print "Downloading...Please wait"
     downloadFileReq = urllib2.Request(zipLinks[choice], headers={'User-Agent': "Magic"})
     downloadFile = urllib2.urlopen(downloadFileReq)
@@ -89,10 +113,8 @@ if __name__ == '__main__':
         for song in zipFile.namelist():
             print song
     except:
-        pass
-    
+        pass    
     print "Extracting all songs to the directory " + os.getcwd()     
-    zipFile.extractall()
-    
+    zipFile.extractall()    
     print "Download successful."
 
