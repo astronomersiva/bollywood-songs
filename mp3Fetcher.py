@@ -57,7 +57,7 @@ if __name__ == '__main__':
        songsPKUrl = base + toAppend
     elif int(year) >= 2011:
        base = "http://www.songspk.name/indian-mp3-songs/"
-       toAppend = '-'.join(movie.split()) + '-' + year + '_mp3_songs.html'
+       toAppend = '_'.join(movie.split()) + '_' + year + '_mp3_songs.html'
        songsPKUrl = base + toAppend
     else:
        base = "http://www.songspk.name/indian/"
